@@ -1,34 +1,59 @@
-import React from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  Pressable,
-  Alert,
-} from "react-native";
+import React, { useState } from "react";
+import { View, Text, Pressable, StyleSheet, Alert } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
+import { useFonts, Salsa_400Regular } from "@expo-google-fonts/salsa";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { Session } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabase";
+import BottomNav, { TabKey } from "../components/BottomNav";
+import TodayScreen from "./TodayScreen";
+import TimelineScreen from "./TimelineScreen";
 
 interface HomeScreenProps {
   session: Session;
 }
 
 export default function HomeScreen({ session }: HomeScreenProps) {
+  const [activeTab, setActiveTab] = useState<TabKey>("today");
+  const [fontsLoaded] = useFonts({ Salsa_400Regular });
+
   const user = session.user;
-  const userName =
+  const firstName = (
     user.user_metadata?.full_name ||
     user.user_metadata?.name ||
-    user.email ||
-    "Kullanıcı";
-  const avatarUrl = user.user_metadata?.avatar_url;
+    "User"
+  ).split(" ")[0];
+
+  const fontFamily = fontsLoaded ? "Salsa_400Regular" : undefined;
+  const font = fontFamily ? { fontFamily } : {};
 
   const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      Alert.alert("Çıkış Hatası", error.message);
+    Alert.alert("Çıkış Yap", "Hesabından çıkmak istiyor musun?", [
+      { text: "İptal", style: "cancel" },
+      {
+        text: "Çıkış",
+        style: "destructive",
+        onPress: async () => {
+          const { error } = await supabase.auth.signOut();
+          if (error) Alert.alert("Hata", error.message);
+        },
+      },
+    ]);
+  };
+
+  const renderContent = () => {
+    switch (activeTab) {
+      case "today":
+        return <TodayScreen fontFamily={fontFamily} />;
+      case "timeline":
+        return <TimelineScreen fontFamily={fontFamily} />;
+      case "insights":
+        return (
+          <View style={styles.placeholder}>
+            <Text style={[styles.placeholderText, font]}>Insights coming soon…</Text>
+          </View>
+        );
     }
   };
 
@@ -37,163 +62,63 @@ export default function HomeScreen({ session }: HomeScreenProps) {
       <StatusBar style="light" />
 
       <LinearGradient
-        colors={["#0B0E1A", "#111936", "#0B0E1A"]}
+        colors={["#0B1022", "#0D1530", "#0B1022"]}
         locations={[0, 0.5, 1]}
         style={StyleSheet.absoluteFill}
       />
 
-      <Animated.View entering={FadeIn.duration(800)} style={styles.content}>
-        {/* Küre placeholder */}
-        <View style={styles.orbContainer}>
-          <View style={styles.mainOrb}>
-            <View style={styles.orbInnerGlow} />
-            <View style={styles.orbHighlight} />
-          </View>
-          <View style={styles.orbOuterGlow} />
+      {/* ── Üst Bar (tüm sekmelerde sabit) ── */}
+      <Animated.View entering={FadeIn.duration(600)} style={styles.topBar}>
+        <View>
+          <Text style={[styles.headerTitle, font]}>
+            {activeTab === "today" ? "Today" : activeTab === "timeline" ? "Timeline" : "Insights"}
+          </Text>
+          <Text style={[styles.headerSub, font]}>
+            {activeTab === "today" ? "Your day in music" : activeTab === "timeline" ? "Your mood history" : "Weekly overview"}
+          </Text>
         </View>
-
-        <Text style={styles.greeting}>Merhaba, {userName}!</Text>
-        <Text style={styles.subtitle}>
-          Bugünün küresi müzik dinledikçe{"\n"}şekillenecek...
-        </Text>
-
-        <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>0</Text>
-            <Text style={styles.statLabel}>Şarkı</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>—</Text>
-            <Text style={styles.statLabel}>Baskın Duygu</Text>
-          </View>
-        </View>
-
-        <Pressable
-          onPress={handleLogout}
-          style={({ pressed }) => [
-            styles.logoutButton,
-            pressed && { opacity: 0.7 },
-          ]}
-        >
-          <Text style={styles.logoutText}>Çıkış Yap</Text>
+        <Pressable onPress={handleLogout} style={styles.avatarBtn}>
+          <LinearGradient colors={["#1DB954", "#1AA34A"]} style={styles.avatarGradient}>
+            <Text style={[styles.avatarInitial, font]}>
+              {firstName.charAt(0).toUpperCase()}
+            </Text>
+          </LinearGradient>
         </Pressable>
       </Animated.View>
+
+      {/* ── İçerik ── */}
+      <View style={styles.content}>
+        {renderContent()}
+      </View>
+
+      {/* ── Bottom Nav ── */}
+      <BottomNav active={activeTab} onPress={setActiveTab} fontFamily={fontFamily} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: "#0B0E1A",
-  },
-  content: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 30,
-  },
+  root: { flex: 1, backgroundColor: "#0B1022" },
 
-  /* ── Main Orb (placeholder) ── */
-  orbContainer: {
-    width: 180,
-    height: 180,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 40,
-  },
-  mainOrb: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: "#FFD700",
-    opacity: 0.7,
-    overflow: "hidden",
-    shadowColor: "#FFD700",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 30,
-    elevation: 20,
-  },
-  orbInnerGlow: {
-    position: "absolute",
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: "rgba(255, 215, 0, 0.3)",
-  },
-  orbHighlight: {
-    position: "absolute",
-    width: 55,
-    height: 30,
-    borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.4)",
-    top: 20,
-    left: 25,
-  },
-  orbOuterGlow: {
-    position: "absolute",
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    backgroundColor: "rgba(255, 215, 0, 0.08)",
-  },
-
-  /* ── Text ── */
-  greeting: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#FFFFFF",
-    marginBottom: 8,
-    textShadowColor: "rgba(255, 215, 0, 0.3)",
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 16,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: "rgba(255,255,255,0.5)",
-    textAlign: "center",
-    lineHeight: 20,
-    marginBottom: 40,
-  },
-
-  /* ── Stats ── */
-  statsRow: {
+  topBar: {
     flexDirection: "row",
-    gap: 16,
-    marginBottom: 50,
-  },
-  statCard: {
-    backgroundColor: "rgba(255,255,255,0.06)",
-    borderRadius: 16,
-    paddingVertical: 18,
-    paddingHorizontal: 28,
+    justifyContent: "space-between",
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
+    paddingTop: 56,
+    paddingHorizontal: 22,
+    paddingBottom: 12,
   },
-  statNumber: {
-    fontSize: 24,
-    fontWeight: "800",
-    color: "#FFD700",
+  headerTitle: { fontSize: 28, color: "#FFFFFF" },
+  headerSub:   { fontSize: 14, color: "#9AA6C4", marginTop: 2 },
+  avatarBtn:   { borderRadius: 24, overflow: "hidden" },
+  avatarGradient: {
+    width: 44, height: 44, borderRadius: 22,
+    alignItems: "center", justifyContent: "center",
   },
-  statLabel: {
-    fontSize: 12,
-    color: "rgba(255,255,255,0.45)",
-    marginTop: 4,
-  },
+  avatarInitial: { fontSize: 18, color: "#fff" },
 
-  /* ── Logout ── */
-  logoutButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
-  },
-  logoutText: {
-    color: "rgba(255,255,255,0.5)",
-    fontSize: 14,
-    fontWeight: "500",
-  },
+  content: { flex: 1 },
+
+  placeholder: { flex: 1, alignItems: "center", justifyContent: "center" },
+  placeholderText: { fontSize: 16, color: "#9AA6C4" },
 });

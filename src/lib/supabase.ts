@@ -10,5 +10,9 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
+    // Implicit flow: Spotify onayından sonra Supabase,
+    // #access_token=... fragment'ı ile redirect eder.
+    // openAuthSessionAsync bu fragment'ı yakalayabilir.
+    flowType: "implicit",
   },
 });
